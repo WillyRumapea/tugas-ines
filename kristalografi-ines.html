@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pembangkitan Motif dari Kristalografi</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+        background-color: #f0f8ff;
+      }
+      #canvas-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+      .header {
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #001f5f;
+        font-size: 28px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        z-index: 100;
+        pointer-events: none;
+      }
+      .info-panel {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        font-size: 14px;
+        max-width: 300px;
+        z-index: 100;
+      }
+      .dg.ac {
+        z-index: 1000 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">Pembangkitan Motif dari Kristalografi</div>
+    <div id="canvas-container"></div>
+    <div class="info-panel">
+      <p>Gunakan mouse untuk memutar model. Scroll untuk zoom.</p>
+      <p>
+        Panel kontrol di kanan untuk mengubah warna, bentuk, dan parameter
+        lainnya.
+      </p>
+    </div>
+
+    <script>
+      // Scene setup
+      const container = document.getElementById("canvas-container");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf0f8ff);
+
+      // Camera setup
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 15;
+      camera.position.y = 5;
+      camera.position.x = 5;
+
+      // Renderer setup
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+
+      // Light setup
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(1, 1, 1).normalize();
+      scene.add(directionalLight);
+
+      const pointLight = new THREE.PointLight(0xffffff, 0.8);
+      pointLight.position.set(5, 5, 5);
+      scene.add(pointLight);
+
+      // Controls
+      let isDragging = false;
+      let previousMousePosition = {
+        x: 0,
+        y: 0,
+      };
+
+      // Crystal parameters
+      const params = {
+        cellDimX: 4,
+        cellDimY: 3,
+        cellDimZ: 2,
+        latticeConstantX: 3,
+        latticeConstantY: 3,
+        latticeConstantZ: 3,
+        atom1Color: "#ff3333",
+        atom2Color: "#33cc33",
+        atom1Size: 0.6,
+        atom2Size: 0.3,
+        atom1Shape: "Sphere", // Options: Sphere, Cube, Octahedron, Tetrahedron
+        atom2Shape: "Sphere",
+        showBonds: true,
+        bondColor: "#ffffff",
+        bondOpacity: 0.7,
+        bondThickness: 0.1,
+        animationSpeed: 0.5,
+        animate: true,
+        resetView: function () {
+          resetCamera();
+        },
+        regenerate: function () {
+          regenerateCrystal();
+        },
+      };
+
+      // GUI setup
+      const gui = new dat.GUI({ width: 300 });
+      gui.domElement.style.position = "absolute";
+      gui.domElement.style.top = "60px";
+      gui.domElement.style.right = "20px";
+
+      const crystalFolder = gui.addFolder("Crystal Properties");
+      crystalFolder
+        .add(params, "cellDimX", 1, 6, 1)
+        .name("Cell X Dimension")
+        .onChange(regenerateCrystal);
+      crystalFolder
+        .add(params, "cellDimY", 1, 6, 1)
+        .name("Cell Y Dimension")
+        .onChange(regenerateCrystal);
+      crystalFolder
+        .add(params, "cellDimZ", 1, 6, 1)
+        .name("Cell Z Dimension")
+        .onChange(regenerateCrystal);
+      crystalFolder
+        .add(params, "latticeConstantX", 1, 5, 0.1)
+        .name("X Spacing")
+        .onChange(regenerateCrystal);
+      crystalFolder
+        .add(params, "latticeConstantY", 1, 5, 0.1)
+        .name("Y Spacing")
+        .onChange(regenerateCrystal);
+      crystalFolder
+        .add(params, "latticeConstantZ", 1, 5, 0.1)
+        .name("Z Spacing")
+        .onChange(regenerateCrystal);
+      crystalFolder.open();
+
+      const atom1Folder = gui.addFolder("Atom 1 (Large)");
+      atom1Folder
+        .addColor(params, "atom1Color")
+        .name("Color")
+        .onChange(updateAtomColors);
+      atom1Folder
+        .add(params, "atom1Size", 0.1, 1.5, 0.1)
+        .name("Size")
+        .onChange(regenerateCrystal);
+      atom1Folder
+        .add(params, "atom1Shape", [
+          "Sphere",
+          "Cube",
+          "Octahedron",
+          "Tetrahedron",
+          "Dodecahedron",
+        ])
+        .name("Shape")
+        .onChange(regenerateCrystal);
+      atom1Folder.open();
+
+      const atom2Folder = gui.addFolder("Atom 2 (Small)");
+      atom2Folder
+        .addColor(params, "atom2Color")
+        .name("Color")
+        .onChange(updateAtomColors);
+      atom2Folder
+        .add(params, "atom2Size", 0.1, 1.0, 0.1)
+        .name("Size")
+        .onChange(regenerateCrystal);
+      atom2Folder
+        .add(params, "atom2Shape", [
+          "Sphere",
+          "Cube",
+          "Octahedron",
+          "Tetrahedron",
+          "Dodecahedron",
+        ])
+        .name("Shape")
+        .onChange(regenerateCrystal);
+      atom2Folder.open();
+
+      const bondFolder = gui.addFolder("Bonds");
+      bondFolder
+        .add(params, "showBonds")
+        .name("Show Bonds")
+        .onChange(regenerateCrystal);
+      bondFolder
+        .addColor(params, "bondColor")
+        .name("Bond Color")
+        .onChange(updateBondColors);
+      bondFolder
+        .add(params, "bondOpacity", 0, 1, 0.1)
+        .name("Bond Opacity")
+        .onChange(updateBondColors);
+      bondFolder
+        .add(params, "bondThickness", 0.01, 0.3, 0.01)
+        .name("Bond Thickness")
+        .onChange(regenerateCrystal);
+      bondFolder.open();
+
+      const animationFolder = gui.addFolder("Animation");
+      animationFolder.add(params, "animate").name("Animate");
+      animationFolder.add(params, "animationSpeed", 0, 2, 0.1).name("Speed");
+      animationFolder.open();
+
+      gui.add(params, "resetView").name("Reset View");
+      gui.add(params, "regenerate").name("Regenerate Crystal");
+
+      // Groups for objects
+      const crystalGroup = new THREE.Group();
+      scene.add(crystalGroup);
+
+      // Lists to keep track of objects
+      let atoms = [];
+      let bonds = [];
+
+      // Create crystal structure
+      function createCrystal() {
+        clearCrystal();
+
+        // Create unit cell outline
+        const cellWidth = params.latticeConstantX * params.cellDimX;
+        const cellHeight = params.latticeConstantY * params.cellDimY;
+        const cellDepth = params.latticeConstantZ * params.cellDimZ;
+
+        createUnitCellOutline(cellWidth, cellHeight, cellDepth);
+
+        // Create crystal motifs
+        for (let x = 0; x < params.cellDimX; x++) {
+          for (let y = 0; y < params.cellDimY; y++) {
+            for (let z = 0; z < params.cellDimZ; z++) {
+              const xPos =
+                (x - (params.cellDimX - 1) / 2) * params.latticeConstantX;
+              const yPos =
+                (y - (params.cellDimY - 1) / 2) * params.latticeConstantY;
+              const zPos =
+                (z - (params.cellDimZ - 1) / 2) * params.latticeConstantZ;
+
+              createMotif(xPos, yPos, zPos);
+            }
+          }
+        }
+
+        // Center the crystal group
+        const center = new THREE.Vector3();
+        const boundingBox = new THREE.Box3().setFromObject(crystalGroup);
+        boundingBox.getCenter(center);
+        crystalGroup.position.sub(center);
+      }
+
+      function createUnitCellOutline(width, height, depth) {
+        const edges = [
+          // Bottom face
+          [
+            [-width / 2, -height / 2, -depth / 2],
+            [width / 2, -height / 2, -depth / 2],
+          ],
+          [
+            [width / 2, -height / 2, -depth / 2],
+            [width / 2, -height / 2, depth / 2],
+          ],
+          [
+            [width / 2, -height / 2, depth / 2],
+            [-width / 2, -height / 2, depth / 2],
+          ],
+          [
+            [-width / 2, -height / 2, depth / 2],
+            [-width / 2, -height / 2, -depth / 2],
+          ],
+
+          // Top face
+          [
+            [-width / 2, height / 2, -depth / 2],
+            [width / 2, height / 2, -depth / 2],
+          ],
+          [
+            [width / 2, height / 2, -depth / 2],
+            [width / 2, height / 2, depth / 2],
+          ],
+          [
+            [width / 2, height / 2, depth / 2],
+            [-width / 2, height / 2, depth / 2],
+          ],
+          [
+            [-width / 2, height / 2, depth / 2],
+            [-width / 2, height / 2, -depth / 2],
+          ],
+
+          // Connecting edges
+          [
+            [-width / 2, -height / 2, -depth / 2],
+            [-width / 2, height / 2, -depth / 2],
+          ],
+          [
+            [width / 2, -height / 2, -depth / 2],
+            [width / 2, height / 2, -depth / 2],
+          ],
+          [
+            [width / 2, -height / 2, depth / 2],
+            [width / 2, height / 2, depth / 2],
+          ],
+          [
+            [-width / 2, -height / 2, depth / 2],
+            [-width / 2, height / 2, depth / 2],
+          ],
+        ];
+
+        edges.forEach((edge) => {
+          const [start, end] = edge;
+          const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(...start),
+            new THREE.Vector3(...end),
+          ]);
+
+          const material = new THREE.LineBasicMaterial({
+            color: 0x000000,
+            opacity: 0.3,
+            transparent: true,
+          });
+
+          const line = new THREE.Line(geometry, material);
+          crystalGroup.add(line);
+        });
+      }
+
+      function createMotif(xPos, yPos, zPos) {
+        // Create the first atom (larger)
+        const atom1 = createAtom(
+          params.atom1Shape,
+          params.atom1Size,
+          params.atom1Color
+        );
+        atom1.position.set(xPos, yPos, zPos);
+        crystalGroup.add(atom1);
+        atoms.push({ object: atom1, type: 1 });
+
+        // Create three smaller atoms (at different positions from the main atom)
+        const positions = [
+          [0.7, 0.7, 0],
+          [-0.7, 0.7, 0],
+          [0, -0.7, 0.7],
+        ];
+
+        positions.forEach((pos) => {
+          const atom2 = createAtom(
+            params.atom2Shape,
+            params.atom2Size,
+            params.atom2Color
+          );
+          atom2.position.set(xPos + pos[0], yPos + pos[1], zPos + pos[2]);
+          crystalGroup.add(atom2);
+          atoms.push({ object: atom2, type: 2 });
+
+          // Create bond between atoms
+          if (params.showBonds) {
+            createBond(atom1.position, atom2.position);
+          }
+        });
+      }
+
+      function createAtom(shape, size, color) {
+        let geometry;
+
+        switch (shape) {
+          case "Cube":
+            geometry = new THREE.BoxGeometry(size, size, size);
+            break;
+          case "Octahedron":
+            geometry = new THREE.OctahedronGeometry(size);
+            break;
+          case "Tetrahedron":
+            geometry = new THREE.TetrahedronGeometry(size);
+            break;
+          case "Dodecahedron":
+            geometry = new THREE.DodecahedronGeometry(size);
+            break;
+          case "Sphere":
+          default:
+            geometry = new THREE.SphereGeometry(size, 32, 32);
+            break;
+        }
+
+        const material = new THREE.MeshPhongMaterial({
+          color: new THREE.Color(color),
+          specular: 0x777777,
+          shininess: 100,
+          reflectivity: 1,
+        });
+
+        return new THREE.Mesh(geometry, material);
+      }
+
+      function createBond(startPos, endPos) {
+        const direction = new THREE.Vector3().subVectors(endPos, startPos);
+        const center = new THREE.Vector3()
+          .addVectors(startPos, endPos)
+          .multiplyScalar(0.5);
+        const length = direction.length();
+
+        direction.normalize();
+
+        const cylinderGeometry = new THREE.CylinderGeometry(
+          params.bondThickness,
+          params.bondThickness,
+          length,
+          8,
+          1
+        );
+
+        // Rotate the cylinder to align with the direction
+        cylinderGeometry.applyMatrix4(
+          new THREE.Matrix4().makeRotationX(Math.PI / 2)
+        );
+
+        const material = new THREE.MeshPhongMaterial({
+          color: new THREE.Color(params.bondColor),
+          transparent: true,
+          opacity: params.bondOpacity,
+        });
+
+        const cylinder = new THREE.Mesh(cylinderGeometry, material);
+
+        // Position the cylinder
+        cylinder.position.copy(center);
+
+        // Orient the cylinder
+        cylinder.quaternion.setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          direction
+        );
+
+        crystalGroup.add(cylinder);
+        bonds.push(cylinder);
+
+        return cylinder;
+      }
+
+      function clearCrystal() {
+        // Remove all atoms and bonds
+        atoms.forEach((atom) => {
+          crystalGroup.remove(atom.object);
+          if (atom.object.geometry) atom.object.geometry.dispose();
+          if (atom.object.material) atom.object.material.dispose();
+        });
+
+        bonds.forEach((bond) => {
+          crystalGroup.remove(bond);
+          if (bond.geometry) bond.geometry.dispose();
+          if (bond.material) bond.material.dispose();
+        });
+
+        // Clear the arrays
+        atoms = [];
+        bonds = [];
+
+        // Remove all other objects from the crystal group
+        while (crystalGroup.children.length > 0) {
+          const child = crystalGroup.children[0];
+          crystalGroup.remove(child);
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+        }
+      }
+
+      function updateAtomColors() {
+        atoms.forEach((atom) => {
+          if (atom.type === 1) {
+            atom.object.material.color.set(params.atom1Color);
+          } else if (atom.type === 2) {
+            atom.object.material.color.set(params.atom2Color);
+          }
+        });
+      }
+
+      function updateBondColors() {
+        bonds.forEach((bond) => {
+          bond.material.color.set(params.bondColor);
+          bond.material.opacity = params.bondOpacity;
+        });
+      }
+
+      function regenerateCrystal() {
+        createCrystal();
+      }
+
+      function resetCamera() {
+        camera.position.set(15, 5, 5);
+        camera.lookAt(0, 0, 0);
+      }
+
+      // Event listeners
+      document.addEventListener("mousedown", onMouseDown);
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+      document.addEventListener("wheel", onMouseWheel);
+      window.addEventListener("resize", onWindowResize);
+
+      function onMouseDown(event) {
+        isDragging = true;
+        previousMousePosition = {
+          x: event.clientX,
+          y: event.clientY,
+        };
+      }
+
+      function onMouseMove(event) {
+        if (isDragging) {
+          const deltaMove = {
+            x: event.clientX - previousMousePosition.x,
+            y: event.clientY - previousMousePosition.y,
+          };
+
+          if (crystalGroup) {
+            crystalGroup.rotation.y += deltaMove.x * 0.01;
+            crystalGroup.rotation.x += deltaMove.y * 0.01;
+          }
+
+          previousMousePosition = {
+            x: event.clientX,
+            y: event.clientY,
+          };
+        }
+      }
+
+      function onMouseUp() {
+        isDragging = false;
+      }
+
+      function onMouseWheel(event) {
+        event.preventDefault();
+
+        const zoomSpeed = 0.1;
+
+        // Zoom in or out
+        if (event.deltaY > 0) {
+          camera.position.z += zoomSpeed * 5;
+        } else {
+          camera.position.z -= zoomSpeed * 5;
+        }
+
+        // Clamp camera distance
+        camera.position.z = Math.max(3, Math.min(camera.position.z, 50));
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      // Animation
+      let time = 0;
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        if (params.animate) {
+          time += 0.01 * params.animationSpeed;
+
+          // Animate atoms
+          atoms.forEach((atom, index) => {
+            const yOffset = Math.sin(time + index * 0.2) * 0.1;
+            const xOffset = Math.cos(time + index * 0.3) * 0.1;
+
+            // Store original position if not already stored
+            if (!atom.originalPosition) {
+              atom.originalPosition = atom.object.position.clone();
+            }
+
+            // Apply animation
+            atom.object.position.y = atom.originalPosition.y + yOffset;
+            atom.object.position.x = atom.originalPosition.x + xOffset;
+          });
+
+          // Update bonds
+          if (params.showBonds) {
+            updateBondPositions();
+          }
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      function updateBondPositions() {
+        // We need to regenerate all bonds because their endpoints moved
+        // This is a simple approach - a more efficient one would track which atoms connect to which bonds
+
+        // Remove existing bonds
+        bonds.forEach((bond) => {
+          crystalGroup.remove(bond);
+          if (bond.geometry) bond.geometry.dispose();
+          if (bond.material) bond.material.dispose();
+        });
+        bonds = [];
+
+        // Recreate bonds based on current atom positions
+        // This is a simplified approach - in a real application you'd need a more sophisticated method
+        for (let i = 0; i < atoms.length; i++) {
+          const atom1 = atoms[i];
+          if (atom1.type === 1) {
+            // Only connect from type 1 atoms
+            // Find nearby type 2 atoms
+            for (let j = 0; j < atoms.length; j++) {
+              const atom2 = atoms[j];
+              if (atom2.type === 2) {
+                const distance = atom1.object.position.distanceTo(
+                  atom2.object.position
+                );
+                // If they are close enough, create a bond
+                if (distance < 2) {
+                  createBond(atom1.object.position, atom2.object.position);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Initial setup
+      createCrystal();
+      animate();
+    </script>
+  </body>
+</html>
