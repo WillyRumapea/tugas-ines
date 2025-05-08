@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pembuat Pola Frieze Kaligrafi</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      header {
+        background-color: #ffffff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      h1 {
+        color: #333;
+        margin: 0;
+        font-size: 2.2rem;
+      }
+
+      .subtitle {
+        color: #666;
+        font-style: italic;
+        margin-top: 5px;
+      }
+
+      .container {
+        width: 90%;
+        max-width: 1000px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        margin-bottom: 40px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #444;
+      }
+
+      select,
+      input,
+      textarea {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border 0.3s;
+      }
+
+      select:focus,
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: #7c5dfa;
+      }
+
+      .btn {
+        background-color: #7c5dfa;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .btn:hover {
+        background-color: #6a4df0;
+        transform: translateY(-2px);
+      }
+
+      .pattern-display {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        white-space: nowrap;
+        min-height: 100px;
+        margin-top: 20px;
+        font-family: monospace;
+        line-height: 1.4;
+        border: 1px solid #eee;
+      }
+
+      .templates {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .template {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        font-family: monospace;
+      }
+
+      .template:hover {
+        border-color: #7c5dfa;
+        background-color: #f5f5ff;
+      }
+
+      .color-preview {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        margin-left: 10px;
+        vertical-align: middle;
+        border: 1px solid #ddd;
+      }
+
+      footer {
+        text-align: center;
+        margin-top: auto;
+        padding: 20px;
+        color: #666;
+        font-size: 0.9rem;
+      }
+
+      .export-options {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: flex-end;
+      }
+
+      .btn-secondary {
+        background-color: #f5f5f5;
+        color: #333;
+        border: 1px solid #ddd;
+      }
+
+      .btn-secondary:hover {
+        background-color: #eaeaea;
+      }
+
+      @media (max-width: 768px) {
+        .controls {
+          grid-template-columns: 1fr;
+        }
+
+        .export-options {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Pembuat Pola Frieze Kaligrafi</h1>
+      <p class="subtitle">
+        Buat pola kaligrafi dengan simetri translasi dan refleksi horizontal
+      </p>
+    </header>
+
+    <div class="container">
+      <div class="controls">
+        <div class="control-group">
+          <label for="motif">Pilih Motif Dasar:</label>
+          <select id="motif" onchange="updatePattern()">
+            <option value="custom">Kustom</option>
+            <option value="◆◇◆◇" selected>◆◇◆◇ (Berlian)</option>
+            <option value="꧁༺❀༻꧂">꧁༺❀༻꧂ (Bunga)</option>
+            <option value="⚜">⚜ (Fleur-de-lis)</option>
+            <option value="۞">۞ (Simbol Tah Arab)</option>
+            <option value="🕉">🕉 (Om)</option>
+            <option value="☸">☸ (Dharma)</option>
+            <option value="♥♡">♥♡ (Hati)</option>
+            <option value="✿❁✿">✿❁✿ (Bunga)</option>
+            <option value="𓂀">𓂀 (Mata Horus)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="customMotif">Motif Kustom:</label>
+          <input
+            type="text"
+            id="customMotif"
+            placeholder="Masukkan karakter kustom"
+            onkeyup="updatePattern()"
+          />
+        </div>
+
+        <div class="control-group">
+          <label for="foreground"
+            >Warna Teks: <span class="color-preview" id="fgPreview"></span
+          ></label>
+          <input
+            type="color"
+            id="foreground"
+            value="#000000"
+            onchange="updatePattern()"
+          />
+        </div>
+
+        <div class="control-group">
+          <label for="background"
+            >Warna Latar: <span class="color-preview" id="bgPreview"></span
+          ></label>
+          <input
+            type="color"
+            id="background"
+            value="#ffffff"
+            onchange="updatePattern()"
+          />
+        </div>
+
+        <div class="control-group">
+          <label for="repeat">Jumlah Pengulangan:</label>
+          <input
+            type="number"
+            id="repeat"
+            min="1"
+            max="50"
+            value="12"
+            onchange="updatePattern()"
+          />
+        </div>
+
+        <div class="control-group">
+          <label for="symmetry">Jenis Simetri:</label>
+          <select id="symmetry" onchange="updatePattern()">
+            <option value="translation">Translasi (F1)</option>
+            <option value="horizontal" selected>
+              Refleksi Horizontal (F2)
+            </option>
+            <option value="glide">Refleksi Glide (F3)</option>
+            <option value="rotation">Rotasi 180° (F4)</option>
+            <option value="vertical">Refleksi Vertikal (F5)</option>
+            <option value="glide-rotation">Refleksi Glide + Rotasi (F6)</option>
+            <option value="all">Semua Simetri (F7)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="rows">Jumlah Baris:</label>
+        <input
+          type="number"
+          id="rows"
+          min="1"
+          max="10"
+          value="3"
+          onchange="updatePattern()"
+        />
+      </div>
+
+      <button class="btn" onclick="updatePattern()">Hasilkan Pola</button>
+
+      <h3>Template Populer:</h3>
+      <div class="templates">
+        <div
+          class="template"
+          onclick="applyTemplate('꧁༺♥༻꧂', '#ff3366', '#f8f8f8')"
+        >
+          ꧁༺♥༻꧂
+        </div>
+        <div
+          class="template"
+          onclick="applyTemplate('▓▒░', '#333333', '#ffffff')"
+        >
+          ▓▒░
+        </div>
+        <div
+          class="template"
+          onclick="applyTemplate('✧･ﾟ:', '#8a2be2', '#f0f8ff')"
+        >
+          ✧･ﾟ:
+        </div>
+        <div
+          class="template"
+          onclick="applyTemplate('|=|', '#3498db', '#ecf0f1')"
+        >
+          |=|
+        </div>
+        <div
+          class="template"
+          onclick="applyTemplate('☯', '#000000', '#f0f0f0')"
+        >
+          ☯
+        </div>
+        <div
+          class="template"
+          onclick="applyTemplate('۵', '#d35400', '#fff8e1')"
+        >
+          ۵
+        </div>
+      </div>
+
+      <h3>Hasil Pola Frieze:</h3>
+      <div class="pattern-display" id="patternOutput"></div>
+
+      <div class="export-options">
+        <button class="btn btn-secondary" onclick="copyPattern()">
+          Salin ke Clipboard
+        </button>
+        <button class="btn" onclick="downloadPattern()">
+          Unduh sebagai Teks
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      &copy; 2025 Pembuat Pola Frieze Kaligrafi | Melestarikan seni kaligrafi
+      melalui pola simetris
+    </footer>
+
+    <script>
+      // Update color previews on load
+      document.addEventListener("DOMContentLoaded", function () {
+        updateColorPreviews();
+        updatePattern();
+      });
+
+      function updateColorPreviews() {
+        const fgColor = document.getElementById("foreground").value;
+        const bgColor = document.getElementById("background").value;
+
+        document.getElementById("fgPreview").style.backgroundColor = fgColor;
+        document.getElementById("bgPreview").style.backgroundColor = bgColor;
+      }
+
+      function getMotif() {
+        const motifSelect = document.getElementById("motif");
+        const customMotif = document.getElementById("customMotif").value;
+
+        if (motifSelect.value === "custom" && customMotif) {
+          return customMotif;
+        } else {
+          return motifSelect.value;
+        }
+      }
+
+      function createFriezePattern(motif, symmetryType, repetitions) {
+        let basePattern = "";
+
+        // Create basic pattern with translation symmetry
+        for (let i = 0; i < repetitions; i++) {
+          basePattern += motif;
+        }
+
+        // Apply different symmetry types
+        switch (symmetryType) {
+          case "translation":
+            return basePattern;
+
+          case "horizontal":
+            return (
+              basePattern + "\n" + basePattern.split("").reverse().join("")
+            );
+
+          case "glide":
+            return (
+              basePattern +
+              "\n" +
+              " ".repeat(motif.length / 2) +
+              basePattern.split("").reverse().join("")
+            );
+
+          case "rotation":
+            const rotated = basePattern
+              .split("")
+              .map((char) => {
+                // Simple character rotation approximation
+                const rotationMap = {
+                  "(": ")",
+                  ")": "(",
+                  "<": ">",
+                  ">": "<",
+                  "[": "]",
+                  "]": "[",
+                  "{": "}",
+                  "}": "{",
+                  "/": "\\",
+                  "\\": "/",
+                  "⟨": "⟩",
+                  "⟩": "⟨",
+                  "⌈": "⌋",
+                  "⌋": "⌈",
+                  "⌉": "⌊",
+                  "⌊": "⌉",
+                };
+                return rotationMap[char] || char;
+              })
+              .reverse()
+              .join("");
+            return basePattern + "\n" + rotated;
+
+          case "vertical":
+            // Vertical reflection approximation
+            const verticalReflection = basePattern
+              .split("")
+              .map((char) => {
+                const reflectionMap = {
+                  b: "d",
+                  d: "b",
+                  p: "q",
+                  q: "p",
+                  "(": ")",
+                  ")": "(",
+                  "<": ">",
+                  ">": "<",
+                };
+                return reflectionMap[char] || char;
+              })
+              .join("");
+            return basePattern + "\n" + verticalReflection;
+
+          case "glide-rotation":
+            const glideRotated = basePattern
+              .split("")
+              .map((char) => {
+                const rotationMap = {
+                  "(": ")",
+                  ")": "(",
+                  "<": ">",
+                  ">": "<",
+                  "[": "]",
+                  "]": "[",
+                  "{": "}",
+                  "}": "{",
+                  "/": "\\",
+                  "\\": "/",
+                };
+                return rotationMap[char] || char;
+              })
+              .reverse()
+              .join("");
+            return (
+              basePattern + "\n" + " ".repeat(motif.length / 2) + glideRotated
+            );
+
+          case "all":
+            // Combine multiple symmetries
+            const allSymm1 = basePattern;
+            const allSymm2 = basePattern.split("").reverse().join("");
+            const allSymm3 = basePattern
+              .split("")
+              .map((char) => {
+                const reflectionMap = {
+                  b: "d",
+                  d: "b",
+                  p: "q",
+                  q: "p",
+                  "(": ")",
+                  ")": "(",
+                  "<": ">",
+                  ">": "<",
+                };
+                return reflectionMap[char] || char;
+              })
+              .join("");
+
+            return allSymm1 + "\n" + allSymm2 + "\n" + allSymm3;
+
+          default:
+            return basePattern;
+        }
+      }
+
+      function updatePattern() {
+        const motif = getMotif();
+        const foregroundColor = document.getElementById("foreground").value;
+        const backgroundColor = document.getElementById("background").value;
+        const repetitions = parseInt(document.getElementById("repeat").value);
+        const symmetryType = document.getElementById("symmetry").value;
+        const rows = parseInt(document.getElementById("rows").value);
+
+        updateColorPreviews();
+
+        if (!motif) {
+          document.getElementById("patternOutput").innerHTML =
+            "<i>Silakan pilih atau masukkan motif</i>";
+          return;
+        }
+
+        let pattern = "";
+        const friezePattern = createFriezePattern(
+          motif,
+          symmetryType,
+          repetitions
+        );
+
+        // Repeat the pattern for multiple rows
+        for (let i = 0; i < rows; i++) {
+          pattern += friezePattern;
+          if (i < rows - 1) {
+            pattern += "\n\n"; // Add extra space between pattern blocks
+          }
+        }
+
+        // Apply styling
+        const outputDiv = document.getElementById("patternOutput");
+        outputDiv.innerHTML = pattern.replace(/\n/g, "<br>");
+        outputDiv.style.color = foregroundColor;
+        outputDiv.style.backgroundColor = backgroundColor;
+        outputDiv.style.padding = "20px";
+        outputDiv.style.fontSize = "1.2rem";
+      }
+
+      function applyTemplate(template, fgColor, bgColor) {
+        document.getElementById("motif").value = "custom";
+        document.getElementById("customMotif").value = template;
+        document.getElementById("foreground").value = fgColor;
+        document.getElementById("background").value = bgColor;
+        updatePattern();
+      }
+
+      function copyPattern() {
+        const pattern = document.getElementById("patternOutput").innerText;
+        navigator.clipboard
+          .writeText(pattern)
+          .then(() => {
+            alert("Pola berhasil disalin ke clipboard!");
+          })
+          .catch((err) => {
+            console.error("Gagal menyalin: ", err);
+            alert("Gagal menyalin pola. Coba lagi.");
+          });
+      }
+
+      function downloadPattern() {
+        const pattern = document.getElementById("patternOutput").innerText;
+        const element = document.createElement("a");
+        element.setAttribute(
+          "href",
+          "data:text/plain;charset=utf-8," + encodeURIComponent(pattern)
+        );
+        element.setAttribute("download", "pola_frieze.txt");
+
+        element.style.display = "none";
+        document.body.appendChild(element);
+
+        element.click();
+
+        document.body.removeChild(element);
+      }
+    </script>
+  </body>
+</html>
